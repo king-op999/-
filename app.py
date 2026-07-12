@@ -5,6 +5,7 @@ import re
 import os
 import time
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 
@@ -17,10 +18,12 @@ WORKERS_API = "https://vehicleinfo.noobgamingv40.workers.dev/fetch"
 NEW_API_1 = "https://ummmym.onrender.com"
 NEW_API_2 = "https://carhayhaha.onrender.com/api/vehicle"
 
+executor = ThreadPoolExecutor(max_workers=7)
+
 @app.after_request
 def add_cors(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
 
@@ -51,66 +54,62 @@ pre{{color:#00ff88;font-family:monospace;font-size:10px;white-space:pre-wrap}}
 <body>
 <div class="card">
 <h1>🚗 BRONX RC API V8</h1>
-<p style="color:#667;font-size:12px">ALL-IN-ONE • 4 Sources • Proxy Hidden</p>
+<p style="color:#667;font-size:12px">ALL-IN-ONE • 7 Sources • Real-Time</p>
 <div style="margin:10px 0">
 <span class="badge">👤 Owner</span><span class="badge">📱 Mobile</span><span class="badge">🚗 Vehicle</span><span class="badge">🏢 RTO</span><span class="badge">🛡️ Insurance</span>
 </div>
-<div class="section"><p style="color:#0096ff;font-weight:700">🔗 API Endpoint</p><code>GET /rc?num=GJ06RG5545</code></div>
+<div class="section"><p style="color:#0096ff;font-weight:700">🔗 GET Endpoint</p><code>GET /api/vehicle?vehicle=GJ06RG5545</code></div>
+<div class="section"><p style="color:#0096ff;font-weight:700">🔗 POST Endpoint</p><code>POST /api/vehicle</code><br><code>Body: {{"vehicle_number":"GJ06RG5545"}}</code></div>
 <input type="text" id="rcInput" placeholder="RC Number (e.g., GJ06RG5545)">
 <button onclick="lookup()">🔍 LOOKUP ALL SOURCES</button>
 <div class="result" id="result"><pre id="resultData"></pre></div>
 <p style="color:#667;font-size:10px;margin-top:14px">{CREDIT} | V8 ALL-IN-ONE</p>
 </div>
 <script>
-async function lookup(){{var n=document.getElementById('rcInput').value.trim();if(!n)return alert('Enter RC!');var d=document.getElementById('result'),p=document.getElementById('resultData');d.classList.add('show');p.style.color='#ffb400';p.textContent='🔍 Fetching from all sources...';try{{var r=await fetch('/rc?num='+encodeURIComponent(n));var j=await r.json();p.style.color='#00ff88';p.textContent=JSON.stringify(j,null,2)}}catch(e){{p.style.color='#ff3366';p.textContent='❌ '+e.message}}}}
+async function lookup(){{var n=document.getElementById('rcInput').value.trim();if(!n)return alert('Enter RC!');var d=document.getElementById('result'),p=document.getElementById('resultData');d.classList.add('show');p.style.color='#ffb400';p.textContent='🔍 Fetching from 7 sources...';try{{var r=await fetch('/api/vehicle?vehicle='+encodeURIComponent(n));var j=await r.json();p.style.color='#00ff88';p.textContent=JSON.stringify(j,null,2)}}catch(e){{p.style.color='#ff3366';p.textContent='❌ '+e.message}}}}
 </script>
 </body></html>'''
 
-# ============ SOURCE 1: FT-OSINT ============
+# ============ SOURCE FUNCTIONS ============
 def get_ft_osint(rc_number):
     try:
         url = f"{FT_OSINT_API}?key=bronx-ultra-king-ft-bro-op&vehicle={rc_number}"
         resp = requests.get(url, timeout=15)
         data = resp.json()
-        if data and data.get('success'):
-            return data
-        return None
+        return ("ft_osint", data if data and data.get('success') else None)
     except:
-        return None
+        return ("ft_osint", None)
 
-# ============ SOURCE 2: Workers API ============
 def get_workers_data(rc_number):
     try:
         url = f"{WORKERS_API}?vehicle_number={rc_number}"
         resp = requests.get(url, timeout=15)
         data = resp.json()
-        if data:
-            return data
-        return None
+        return ("workers_api", data if data else None)
     except:
-        return None
+        return ("workers_api", None)
 
-# ============ SOURCE 3: Bronx Veh2Num ============
 def get_bronx_veh2num(rc_number):
     try:
         url = f"{BRONX_VEH2NUM_API}?key=op&vehicle={rc_number}"
         resp = requests.get(url, timeout=15)
         data = resp.json()
+        mobile = None
         if data and data.get('mobile_number'):
-            return data.get('mobile_number')
-        if data and isinstance(data, dict):
+            mobile = data.get('mobile_number')
+        elif data and isinstance(data, dict):
             for key in ['mobile_number', 'mobile', 'phone', 'number', 'owner_number']:
                 if data.get(key):
-                    return str(data[key])
-        return None
+                    mobile = str(data[key])
+                    break
+        return ("veh2num", mobile)
     except:
-        return None
+        return ("veh2num", None)
 
-# ============ SOURCE 4: VahanX Scraper ============
 def get_vahanx_data(rc_number):
-    url = f"https://vahanx.in/rc-search/{rc_number}"
-    headers = {"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"}
     try:
+        url = f"https://vahanx.in/rc-search/{rc_number}"
+        headers = {"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"}
         resp = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
         text = soup.get_text()
@@ -122,48 +121,35 @@ def get_vahanx_data(rc_number):
                     div = span.find_parent("div")
                     if div:
                         p = div.find("p")
-                        if p:
-                            return p.get_text(strip=True)
+                        if p: return p.get_text(strip=True)
                 return None
-            except:
-                return None
+            except: return None
         
         father = gv("Father's Name")
         if not father:
             so = re.search(r'(S/O|D/O|W/O)\s*SH\.?\s*([A-Za-z\s]+)', text, re.IGNORECASE)
-            if so:
-                father = f"{so.group(1)} SH. {so.group(2).strip()}"
+            if so: father = f"{so.group(1)} SH. {so.group(2).strip()}"
         
-        return {
-            "father_name": father,
-            "owner_name": gv("Owner Name"),
-            "phone": gv("Phone"),
-            "address": gv("Address"),
-            "city": gv("City Name"),
-            "rto": gv("Registered RTO"),
-            "reg_date": gv("Registration Date"),
-            "model": gv("Model Name"),
-            "fuel": gv("Fuel Type"),
-            "insurance_company": gv("Insurance Company"),
-            "insurance_upto": gv("Insurance Upto"),
-            "fitness_upto": gv("Fitness Upto"),
-            "tax_upto": gv("Tax Upto"),
-            "puc_upto": gv("PUC Upto"),
+        data = {
+            "father_name": father, "owner_name": gv("Owner Name"), "phone": gv("Phone"),
+            "address": gv("Address"), "city": gv("City Name"), "rto": gv("Registered RTO"),
+            "reg_date": gv("Registration Date"), "model": gv("Model Name"), "fuel": gv("Fuel Type"),
+            "insurance_company": gv("Insurance Company"), "insurance_upto": gv("Insurance Upto"),
+            "fitness_upto": gv("Fitness Upto"), "tax_upto": gv("Tax Upto"), "puc_upto": gv("PUC Upto"),
         }
+        return ("vahanx", {k: v for k, v in data.items() if v} if any(data.values()) else None)
     except:
-        return {}
+        return ("vahanx", None)
 
-# ============ SOURCE 5: CarInfo RTO ============
 def get_carinfo_rto(rc_number):
-    url = f"https://www.carinfo.app/rto-vehicle-registration-detail/rto-details/{rc_number}"
-    headers = {"User-Agent": "Mozilla/5.0"}
     try:
+        url = f"https://www.carinfo.app/rto-vehicle-registration-detail/rto-details/{rc_number}"
+        headers = {"User-Agent": "Mozilla/5.0"}
         resp = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
         info = {}
         match = re.match(r'^([A-Z]{2}\d{2})', rc_number)
-        if match:
-            info["rto_code"] = match.group(1)
+        if match: info["rto_code"] = match.group(1)
         for table in soup.find_all('table'):
             for row in table.find_all('tr'):
                 cells = row.find_all('td')
@@ -175,64 +161,88 @@ def get_carinfo_rto(rc_number):
                     elif 'phone' in k: info['rto_phone'] = v
                     elif 'email' in k: info['rto_email'] = v
                     elif 'city' in k: info['rto_city'] = v
-        return info if len(info) > 1 else None
+        return ("carinfo", info if len(info) > 1 else None)
     except:
-        return None
+        return ("carinfo", None)
 
-# ============ SOURCE 6: NEW API (ummmym) ============
 def get_new_api_1(rc_number):
-    """https://ummmym.onrender.com"""
     try:
         url = f"{NEW_API_1}/?rc={rc_number}"
         resp = requests.get(url, timeout=20)
         data = resp.json()
         if data.get("status") == "success" and data.get("data"):
-            # Remove proxy info
-            clean_data = data.get("data", {})
-            clean_data.pop("_proxy", None)
-            return clean_data
-        return None
+            clean = data.get("data", {})
+            clean.pop("_proxy", None)
+            return ("ummmym", clean if clean else None)
+        return ("ummmym", None)
     except:
-        return None
+        return ("ummmym", None)
 
-# ============ SOURCE 7: NEW API 2 (carhayhaha) ============
 def get_new_api_2(rc_number):
-    """https://carhayhaha.onrender.com/api/vehicle"""
     try:
         url = f"{NEW_API_2}?vehicle={rc_number}"
         resp = requests.get(url, timeout=20)
         data = resp.json()
-        if data and data.get("success"):
-            return data
-        return None
+        return ("carhayhaha", data if data and data.get("success") else None)
     except:
-        return None
+        return ("carhayhaha", None)
 
-# ============ MAIN RC ENDPOINT ============
-@app.route('/rc')
-def rc_lookup():
-    start_time = time.time()
-    rc_number = request.args.get('num', '').strip().upper().replace(' ', '').replace('-', '')
+# ============ MAIN ENDPOINTS ============
+@app.route('/api/vehicle', methods=["GET", "POST", "OPTIONS"])
+@app.route('/rc', methods=["GET", "POST", "OPTIONS"])
+def vehicle_lookup():
+    if request.method == "OPTIONS":
+        return "", 204
     
-    if not rc_number:
+    start_time = time.time()
+    
+    if request.method == "POST":
+        d = request.get_json(silent=True) or {}
+        rc_number = (d.get("vehicle_number") or d.get("vehicle") or d.get("num") or "").upper().strip()
+    else:
+        rc_number = (request.args.get("vehicle") or request.args.get("vehicle_number") or 
+                     request.args.get("num") or "").upper().strip()
+    
+    if not rc_number or len(rc_number) < 4:
         return jsonify({
             "status": "error",
-            "message": "Missing RC number",
-            "credit": CREDIT
+            "message": "Vehicle number required",
+            "usage": {
+                "GET": "/api/vehicle?vehicle=GJ06RG5545",
+                "POST": "/api/vehicle with body {'vehicle_number':'GJ06RG5545'}"
+            }
         }), 400
     
-    # Fetch from ALL sources
-    ft = get_ft_osint(rc_number)
-    worker = get_workers_data(rc_number)
-    v2n = get_bronx_veh2num(rc_number)
-    vx = get_vahanx_data(rc_number)
-    rto = get_carinfo_rto(rc_number)
-    api1 = get_new_api_1(rc_number)
-    api2 = get_new_api_2(rc_number)
+    # Run all 7 sources in parallel
+    futures = {
+        executor.submit(get_ft_osint, rc_number): "ft_osint",
+        executor.submit(get_workers_data, rc_number): "workers",
+        executor.submit(get_bronx_veh2num, rc_number): "veh2num",
+        executor.submit(get_vahanx_data, rc_number): "vahanx",
+        executor.submit(get_carinfo_rto, rc_number): "carinfo",
+        executor.submit(get_new_api_1, rc_number): "ummmym",
+        executor.submit(get_new_api_2, rc_number): "carhayhaha",
+    }
+    
+    results = {}
+    for future in as_completed(futures):
+        try:
+            name, data = future.result()
+            results[name] = data
+        except:
+            pass
     
     response_time = round(time.time() - start_time, 2)
     
-    # Build final response
+    # Build response
+    ft = results.get("ft_osint")
+    worker = results.get("workers")
+    v2n = results.get("veh2num")
+    vx = results.get("vahanx")
+    rto = results.get("carinfo")
+    api1 = results.get("ummmym")
+    api2 = results.get("carhayhaha")
+    
     result = {
         "status": "success",
         "rc_number": rc_number,
@@ -251,7 +261,6 @@ def rc_lookup():
         }
     }
     
-    # ============ FT-OSINT DATA ============
     if ft:
         ft_owner = ft.get("owner", {})
         ft_addr = ft.get("address", {})
@@ -263,139 +272,90 @@ def rc_lookup():
         ft_fitness = ft.get("fitness", {})
         ft_puc = ft.get("puc", {})
         
-        result["ft_osint"] = {
-            "owner_name": ft_owner.get("name"),
-            "father_name": ft_owner.get("father_name"),
-            "present_address": ft_addr.get("present"),
-            "permanent_address": ft_addr.get("permanent"),
-            "city": ft_addr.get("city"),
-            "pincode": ft_addr.get("pincode"),
-            "rto_code": ft_reg.get("rto_code"),
-            "rto_name": ft_reg.get("rto"),
-            "reg_date": ft_reg.get("date"),
-            "manufacturer": ft_vehicle.get("manufacturer"),
-            "model": ft_vehicle.get("model"),
-            "fuel_type": ft_vehicle.get("fuel"),
-            "engine_cc": ft_vehicle.get("cc"),
-            "vehicle_class": ft_vehicle.get("class"),
-            "chassis_number": ft_ident.get("chassis"),
-            "engine_number": ft_ident.get("engine"),
+        result["ft_osint"] = {k: v for k, v in {
+            "owner_name": ft_owner.get("name"), "father_name": ft_owner.get("father_name"),
+            "present_address": ft_addr.get("present"), "permanent_address": ft_addr.get("permanent"),
+            "city": ft_addr.get("city"), "pincode": ft_addr.get("pincode"),
+            "rto_code": ft_reg.get("rto_code"), "rto_name": ft_reg.get("rto"),
+            "reg_date": ft_reg.get("date"), "manufacturer": ft_vehicle.get("manufacturer"),
+            "model": ft_vehicle.get("model"), "fuel_type": ft_vehicle.get("fuel"),
+            "engine_cc": ft_vehicle.get("cc"), "vehicle_class": ft_vehicle.get("class"),
+            "chassis_number": ft_ident.get("chassis"), "engine_number": ft_ident.get("engine"),
             "insurance_company": ft_insurance.get("company"),
             "insurance_valid_upto": ft_insurance.get("valid_upto"),
             "insurance_policy_no": ft_insurance.get("policy_no"),
             "financier_name": ft_financier.get("name"),
             "fitness_valid_upto": ft_fitness.get("fitness_upto"),
             "tax_valid_upto": ft_fitness.get("tax_upto"),
-            "puc_valid_upto": ft_puc.get("valid_upto"),
-            "puc_number": ft_puc.get("no"),
-        }
-        result["ft_osint"] = {k: v for k, v in result["ft_osint"].items() if v}
+            "puc_valid_upto": ft_puc.get("valid_upto"), "puc_number": ft_puc.get("no"),
+        }.items() if v}
     
-    # ============ WORKERS API DATA ============
     if worker:
         result["workers_api"] = worker
-    
-    # ============ MOBILE NUMBER ============
-    mobile = v2n or (vx.get("phone") if vx else None)
-    if mobile:
-        result["mobile_number"] = mobile
-    
-    # ============ VAHANX DATA ============
+    if v2n:
+        result["mobile_number"] = v2n
     if vx:
-        vx_clean = {k: v for k, v in vx.items() if v}
-        if vx_clean:
-            result["vahanx"] = vx_clean
-    
-    # ============ CARINFO RTO DATA ============
+        result["vahanx"] = vx
     if rto:
         result["carinfo_rto"] = rto
-    
-    # ============ NEW API 1 (ummmym) - Proxy hidden ============
     if api1:
         result["ummmym_vehicle_details"] = api1
-    
-    # ============ NEW API 2 (carhayhaha) ============
     if api2:
         result["carhayhaha_vehicle_details"] = api2
     
-    # ============ MERGED SUMMARY ============
+    # Summary
     result["📋_summary"] = {
-        "owner_name": (
-            (ft.get("owner", {}).get("name") if ft else None) or
-            (api1.get("owner_name") if api1 else None) or
-            (api2.get("owner", {}).get("name") if api2 else None) or
-            (worker.get("owner_name") if worker else None) or
-            (vx.get("owner_name") if vx else None) or "N/A"
-        ),
-        "mobile_number": mobile or (api1.get("mobile_number") if api1 else None) or "N/A",
-        "model": (
-            (ft.get("vehicle", {}).get("model") if ft else None) or
-            (api1.get("maker_model") if api1 else None) or
-            (worker.get("model") if worker else None) or
-            (vx.get("model") if vx else None) or "N/A"
-        ),
-        "fuel_type": (
-            (ft.get("vehicle", {}).get("fuel") if ft else None) or
-            (api1.get("fuel_type") if api1 else None) or
-            (worker.get("fuel_type") if worker else None) or
-            (vx.get("fuel") if vx else None) or "N/A"
-        ),
-        "registration_date": (
-            (ft.get("registration", {}).get("date") if ft else None) or
-            (api1.get("registration_date") if api1 else None) or
-            (worker.get("registration_date") if worker else None) or
-            (vx.get("reg_date") if vx else None) or "N/A"
-        ),
-        "rto_name": (
-            (ft.get("registration", {}).get("rto") if ft else None) or
-            (api1.get("registered_at") if api1 else None) or
-            (vx.get("rto") if vx else None) or "N/A"
-        ),
-        "insurance_company": (
-            (ft.get("insurance", {}).get("company") if ft else None) or
-            (api1.get("insurance_company") if api1 else None) or
-            (vx.get("insurance_company") if vx else None) or "N/A"
-        )
+        "owner_name": (ft.get("owner", {}).get("name") if ft else None) or
+                      (api1.get("owner_name") if api1 else None) or
+                      (api2.get("owner", {}).get("name") if api2 else None) or
+                      (worker.get("owner_name") if worker else None) or
+                      (vx.get("owner_name") if vx else None) or "N/A",
+        "mobile_number": v2n or (api1.get("mobile_number") if api1 else None) or "N/A",
+        "model": (ft.get("vehicle", {}).get("model") if ft else None) or
+                 (api1.get("maker_model") if api1 else None) or
+                 (worker.get("model") if worker else None) or
+                 (vx.get("model") if vx else None) or "N/A",
+        "fuel_type": (ft.get("vehicle", {}).get("fuel") if ft else None) or
+                     (api1.get("fuel_type") if api1 else None) or
+                     (worker.get("fuel_type") if worker else None) or
+                     (vx.get("fuel") if vx else None) or "N/A",
+        "registration_date": (ft.get("registration", {}).get("date") if ft else None) or
+                            (api1.get("registration_date") if api1 else None) or
+                            (worker.get("registration_date") if worker else None) or
+                            (vx.get("reg_date") if vx else None) or "N/A",
+        "rto_name": (ft.get("registration", {}).get("rto") if ft else None) or
+                    (api1.get("registered_at") if api1 else None) or
+                    (vx.get("rto") if vx else None) or "N/A"
     }
     
     return jsonify(result)
 
 
-# ============ HEALTH CHECK ============
 @app.route('/health')
 @app.route('/test')
 def test():
     return jsonify({
         "status": "✅ BRONX RC API V8 ONLINE",
         "version": "8.0 ALL-IN-ONE",
-        "endpoint": "/rc?num=GJ06RG5545",
-        "sources": [
-            "FT-OSINT",
-            "Workers API",
-            "Veh2Num",
-            "VahanX Scraper",
-            "CarInfo RTO",
-            "ummmym API (NEW)",
-            "carhayhaha API (NEW)"
-        ],
+        "endpoints": {
+            "GET": "/api/vehicle?vehicle=GJ06RG5545",
+            "POST": "/api/vehicle"
+        },
+        "sources": ["FT-OSINT", "Workers", "Veh2Num", "VahanX", "CarInfo", "ummmym", "carhayhaha"],
         "credit": CREDIT
     })
 
 
 @app.errorhandler(404)
 def not_found(e):
-    return jsonify({
-        "error": "Not found",
-        "home": "/",
-        "api": "/rc?num=RC_NUMBER"
-    }), 404
+    return jsonify({"error": "Not found", "api": "/api/vehicle?vehicle=RC_NUMBER"}), 404
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     print(f"""
-    🚗 BRONX RC API V8 - ALL IN ONE
+    🚗 BRONX RC API V8
     📍 Port: {port}
-    💡 Usage: /rc?num=GJ06RG5545
+    ⚡ 7 Sources Parallel
     """)
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=False)
