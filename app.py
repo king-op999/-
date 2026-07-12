@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 CREDIT = "@BRONX_ULTRA"
-executor = ThreadPoolExecutor(max_workers=6)
+executor = ThreadPoolExecutor(max_workers=4)
 
 @app.after_request
 def add_cors(response):
@@ -20,22 +20,25 @@ def add_cors(response):
 
 @app.route('/')
 def home():
-    return jsonify({"service":"BRONX RC API","credit":CREDIT,"usage":"/api/vehicle?vehicle=GJ06RG5545"})
+    return jsonify({
+        "service": "BRONX RC API V5.0",
+        "credit": CREDIT,
+        "usage": "/api/vehicle?vehicle=GJ06RG5545"
+    })
 
-# ============ WORKERS API - FIXED ============
-def get_workers(rc):
+# ============ SOURCE 1: carhayhaha ============
+def get_carhayhaha(rc):
     try:
-        # 🔥 CORRECT URL
-        url = f"https://vehicleinfo.noobgamingv40.workers.dev/fetch?vehicle_number={rc}"
-        r = requests.get(url, timeout=10)
-        return ("workers", r.json())
-    except Exception as e:
-        return ("workers", None)
+        r = requests.get(f"https://carhayhaha.onrender.com/api/vehicle?vehicle={rc}", timeout=10)
+        d = r.json()
+        return ("carhayhaha", d if d and d.get("success") else None)
+    except:
+        return ("carhayhaha", None)
 
+# ============ SOURCE 2: Veh2Num ============
 def get_mobile(rc):
     try:
-        url = f"https://bronx-web-api.onrender.com/api/key-bronx/veh2num?key=op&vehicle={rc}"
-        r = requests.get(url, timeout=8)
+        r = requests.get(f"https://bronx-web-api.onrender.com/api/key-bronx/veh2num?key=op&vehicle={rc}", timeout=8)
         d = r.json()
         for k in ['mobile_number','mobile','phone']:
             if d.get(k): return ("mobile", str(d[k]))
@@ -43,6 +46,7 @@ def get_mobile(rc):
     except:
         return ("mobile", None)
 
+# ============ SOURCE 3: VahanX ============
 def get_vahanx(rc):
     try:
         r = requests.get(f"https://vahanx.in/rc-search/{rc}", headers={"User-Agent":"Mozilla/5.0"}, timeout=8)
@@ -59,22 +63,16 @@ def get_vahanx(rc):
     except:
         return ("vahanx", None)
 
-def get_carhayhaha(rc):
-    try:
-        r = requests.get(f"https://carhayhaha.onrender.com/api/vehicle?vehicle={rc}", timeout=12)
-        d = r.json()
-        return ("carhayhaha", d if d and d.get("success") else None)
-    except:
-        return ("carhayhaha", None)
-
+# ============ SOURCE 4: ummmym (QUICK - no retry) ============
 def get_ummmym(rc):
     try:
         r = requests.get(f"https://ummmym.onrender.com/?rc={rc}",
-                        headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"}, timeout=15)
+                        headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"}, 
+                        timeout=5)  # SHORT timeout
         d = r.json()
-        if d.get("status")=="success" and d.get("data"):
+        if d.get("status") == "success" and d.get("data"):
             clean = d["data"]
-            clean.pop("_proxy",None)
+            clean.pop("_proxy", None)
             return ("ummmym", clean)
         return ("ummmym", None)
     except:
@@ -98,11 +96,11 @@ def lookup():
     if not rc or len(rc)<4:
         return jsonify({"error":"RC required"}),400
     
+    # ALL 4 parallel
     futures = {
-        executor.submit(get_workers, rc): "workers",
+        executor.submit(get_carhayhaha, rc): "carhayhaha",
         executor.submit(get_mobile, rc): "mobile",
         executor.submit(get_vahanx, rc): "vahanx",
-        executor.submit(get_carhayhaha, rc): "carhayhaha",
         executor.submit(get_ummmym, rc): "ummmym",
     }
     
@@ -110,51 +108,68 @@ def lookup():
     for f in as_completed(futures):
         try:
             k,v = f.result()
-            results[k] = v
+            if v: results[k] = v
         except:
             pass
     
     rt = round(time.time()-start, 2)
     
-    w = results.get("workers")
+    ch = results.get("carhayhaha")
     m = results.get("mobile")
     vx = results.get("vahanx")
-    ch = results.get("carhayhaha")
     um = results.get("ummmym")
     
     resp = {
         "status":"success",
         "rc_number":rc,
         "credit":CREDIT,
-        "response_time":rt,
+        "response_time_seconds":rt,
         "timestamp":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
     
-    if w: resp["workers_api"] = w
-    if m: resp["mobile_number"] = m
-    if vx: resp["vahanx"] = vx
-    if ch: resp["carhayhaha_vehicle_details"] = ch
-    if um: resp["ummmym_vehicle_details"] = um
+    # CARHAYHAHA
+    if ch:
+        resp["vehicle_details"] = {
+            "owner_name": ch.get("owner",{}).get("name"),
+            "father_name": ch.get("owner",{}).get("father_name"),
+            "registration_date": ch.get("registration",{}).get("date"),
+            "rto": ch.get("registration",{}).get("rto"),
+            "rto_code": ch.get("registration",{}).get("rto_code"),
+            "manufacturer": ch.get("vehicle",{}).get("manufacturer"),
+            "model": ch.get("vehicle",{}).get("model"),
+            "variant": ch.get("vehicle",{}).get("variant"),
+            "fuel_type": ch.get("vehicle",{}).get("fuel"),
+            "vehicle_class": ch.get("vehicle",{}).get("class"),
+            "chassis_number": ch.get("identification",{}).get("chassis"),
+            "engine_number": ch.get("identification",{}).get("engine"),
+            "insurance_company": ch.get("insurance",{}).get("company"),
+            "insurance_valid_upto": ch.get("insurance",{}).get("valid_upto"),
+            "insurance_policy_no": ch.get("insurance",{}).get("policy_no"),
+            "address": ch.get("address",{}).get("present"),
+            "city": ch.get("address",{}).get("city"),
+            "rto_phone": ch.get("rto_contact",{}).get("phone"),
+        }
+        resp["vehicle_details"] = {k:v for k,v in resp["vehicle_details"].items() if v}
     
-    resp["summary"] = {
-        "owner": (ch.get("owner",{}).get("name") if ch else None) or
-                 (um.get("owner_name") if um else None) or
-                 (w.get("owner_name") if w else None) or
-                 (vx.get("owner_name") if vx else None) or "N/A",
-        "mobile": m or (um.get("mobile_number") if um else None) or "N/A",
-        "model": (ch.get("vehicle",{}).get("model") if ch else None) or
-                 (um.get("maker_model") if um else None) or
-                 (w.get("model") if w else None) or "N/A",
-        "fuel": (ch.get("vehicle",{}).get("fuel") if ch else None) or
-                (um.get("fuel_type") if um else None) or
-                (w.get("fuel_type") if w else None) or "N/A",
-    }
+    # UMMMYM (agar aaya to add karo)
+    if um:
+        resp["ummmym_details"] = um
+    
+    # MOBILE
+    if m:
+        resp["mobile_number"] = m
+    
+    # VAHANX
+    if vx:
+        resp["extra_info"] = vx
     
     return jsonify(resp)
 
+
 @app.route('/health')
 def health():
-    return jsonify({"status":"ONLINE","credit":CREDIT})
+    return jsonify({"status":"ONLINE","version":"V5.0","credit":CREDIT})
+
 
 if __name__=='__main__':
     port = int(os.environ.get('PORT',3000))
