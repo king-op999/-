@@ -1,272 +1,370 @@
+# ============================================
+# 🚗 BRONX ALL-IN-ONE VEHICLE API
+# 4 APIs Combined • Clean Response • Fast
+# ============================================
 from flask import Flask, request, jsonify
 import requests
-from bs4 import BeautifulSoup
-import re
-import os
 import time
-from datetime import datetime
+import os
 
 app = Flask(__name__)
-CREDIT = "@BRONX_ULTRA"
+
+# APIs
+API_91WHEELS = "https://ummmym.onrender.com"
+API_VEHICLEINFO = "https://vehicleinfo.noobgamingv40.workers.dev/fetch"
+API_VEH2NUM = "https://bronx-web-api.onrender.com/api/key-bronx/veh2num"
+API_CARHAYHAHA = "https://carhayhaha.onrender.com/api/vehicle"
 
 @app.after_request
-def add_cors(response):
+def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = '*'
     return response
 
+# ============ HOME ============
 @app.route('/')
 def home():
-    return jsonify({"service":"RC API","credit":CREDIT,"usage":"/api/vehicle?vehicle=GJ06RG5545"})
+    return '''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🚗 BRONX ALL-IN-ONE VEHICLE API</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000510;color:#d0d8f0;font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
+.card{background:rgba(5,15,35,.95);border:2px solid rgba(0,255,136,.3);border-radius:24px;padding:35px;max-width:750px;width:100%;text-align:center}
+h1{font-size:26px;background:linear-gradient(90deg,#00ff88,#0096ff,#8b00ff,#ff0080);background-size:300% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:rainbow 3s linear infinite}
+@keyframes rainbow{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+.subtitle{color:#555;font-size:11px;letter-spacing:2px;margin:5px 0 15px}
+.badges{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:10px 0}
+.badge{display:inline-block;padding:5px 12px;border-radius:20px;font-size:8px;font-weight:700;background:rgba(0,255,136,.1);color:#00ff88;border:1px solid rgba(0,255,136,.3)}
+.badge.b{background:rgba(0,150,255,.1);color:#0096ff;border-color:rgba(0,150,255,.3)}
+.badge.p{background:rgba(139,0,255,.1);color:#8b00ff;border-color:rgba(139,0,255,.3)}
+.badge.r{background:rgba(255,0,128,.1);color:#ff0080;border-color:rgba(255,0,128,.3)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:15px 0}
+.stat{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.03);border-radius:10px;padding:12px}
+.stat .num{font-size:20px;font-weight:900;color:#00ff88}
+.stat .lbl{font-size:7px;color:#555;text-transform:uppercase}
+code{color:#ffb400;font-family:monospace;font-size:11px;display:block;margin:8px 0;background:rgba(0,0,0,.4);padding:10px;border-radius:8px;word-break:break-all}
+input{width:100%;padding:14px;background:rgba(0,0,0,.6);border:2px solid rgba(0,255,136,.2);border-radius:12px;color:#fff;font-size:15px;outline:none;margin:6px 0}
+input:focus{border-color:#00ff88;box-shadow:0 0 30px rgba(0,255,136,.1)}
+button{width:100%;padding:16px;background:linear-gradient(135deg,#00ff88,#0096ff,#8b00ff);background-size:200% 200%;color:#fff;border:none;border-radius:12px;font-weight:900;cursor:pointer;font-size:15px;margin:8px 0;letter-spacing:2px}
+button:hover{transform:scale(1.02);box-shadow:0 0 40px rgba(0,255,136,.2)}
+.result{background:rgba(0,0,0,.6);border:1px solid rgba(0,255,136,.1);border-radius:12px;padding:14px;margin-top:12px;text-align:left;display:none;max-height:500px;overflow:auto}
+.result.show{display:block}
+pre{color:#00ff88;font-family:monospace;font-size:10px;white-space:pre-wrap}
+footer{color:#333;font-size:9px;margin-top:15px}
+</style></head>
+<body>
+<div class="card">
+<h1>🚗 BRONX ALL-IN-ONE API</h1>
+<p class="subtitle">4 APIs Combined • Clean Response</p>
+<div class="badges">
+<span class="badge">📱 91Wheels</span><span class="badge b">🌐 VehicleInfo</span>
+<span class="badge p">🔍 Veh2Num</span><span class="badge r">🚗 CarHay</span>
+</div>
+<code>GET /api/vehicle?vehicle=MH02FZ0555</code>
+<input type="text" id="rcInput" placeholder="Enter Vehicle Number..." autocomplete="off">
+<button onclick="fetchData()">🔍 FETCH ALL DATA</button>
+<div class="result" id="result"><pre id="data"></pre></div>
+<footer>@BRONX_ULTRA</footer>
+</div>
+<script>
+async function fetchData(){
+var n=document.getElementById('rcInput').value.trim();
+if(!n)return;
+var r=document.getElementById('result'),d=document.getElementById('data');
+r.classList.add('show');d.style.color='#ffb400';d.textContent='⏳ Fetching from 4 APIs...';
+try{
+var resp=await fetch('/api/vehicle?vehicle='+encodeURIComponent(n));
+var json=await resp.json();
+d.style.color='#00ff88';d.textContent=JSON.stringify(json,null,2);
+}catch(e){
+d.style.color='#ff0080';d.textContent='Error: '+e.message;
+}
+}
+</script>
+</body></html>'''
 
-
-def fetch_ummmym(rc):
+# ============ API 1: 91Wheels ============
+def get_91wheels(vehicle):
     try:
-        r = requests.get(f"https://ummmym.onrender.com/?rc={rc}",
-                        headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"}, timeout=15)
-        d = r.json()
-        if d.get("status")=="success" and d.get("data"):
-            clean = d["data"]
-            clean.pop("_proxy",None)  # 🔥 PROXY HIDE
-            # Extra fields hide
-            clean.pop("client_id",None)
-            clean.pop("less_info",None)
-            clean.pop("masked_name",None)
-            clean.pop("response_metadata",None)
-            clean.pop("makeData",None)
-            clean.pop("modelData",None)
-            clean.pop("latest_by",None)
-            return clean
+        url = f"{API_91WHEELS}/?rc={vehicle}"
+        resp = requests.get(url, timeout=15)
+        data = resp.json()
+        
+        # Remove _proxy if present
+        if '_proxy' in data:
+            del data['_proxy']
+        
+        if data.get('success') or data.get('data'):
+            return data
         return None
     except:
         return None
 
-def fetch_workers(rc):
+# ============ API 2: VehicleInfo Worker ============
+def get_vehicleinfo(vehicle):
     try:
-        r = requests.get(f"https://vehicleinfo.noobgamingv40.workers.dev/fetch?vehicle_number={rc}",
-                        headers={"User-Agent":"Mozilla/5.0"}, timeout=15)
-        return r.json()
+        url = f"{API_VEHICLEINFO}?vehicle_number={vehicle}"
+        resp = requests.get(url, timeout=15)
+        data = resp.json()
+        
+        if data.get('success'):
+            vd = data.get('vehicle_data', {})
+            return {
+                "owner_name": vd.get('owner', ''),
+                "father_name": vd.get('ownerFatherName', ''),
+                "manufacturer": vd.get('manufacturer', ''),
+                "model": vd.get('vehicle', ''),
+                "variant": vd.get('variant', ''),
+                "fuel_type": vd.get('fuelType', ''),
+                "engine_cc": vd.get('cubicCapacity', ''),
+                "vehicle_class": vd.get('vehicleClass', ''),
+                "seating_capacity": vd.get('seatCapacity', ''),
+                "registration_date": vd.get('regDate', ''),
+                "insurance_company": vd.get('insuranceCompanyName', ''),
+                "insurance_upto": vd.get('insuranceUpto', ''),
+                "chassis": vd.get('chassis', ''),
+                "engine": vd.get('engine', ''),
+                "pincode": vd.get('pincode', ''),
+            }
+        return None
     except:
         return None
 
-def fetch_carhayhaha(rc):
+# ============ API 3: Veh2Num (Mobile Number) ============
+def get_veh2num(vehicle):
     try:
-        r = requests.get(f"https://carhayhaha.onrender.com/api/vehicle?vehicle={rc}", timeout=15)
-        return r.json()
+        url = f"{API_VEH2NUM}?key=op&vehicle={vehicle}"
+        resp = requests.get(url, timeout=15)
+        data = resp.json()
+        
+        if isinstance(data, dict):
+            for key in ['mobile_number', 'mobile', 'phone', 'number', 'owner_number']:
+                if data.get(key):
+                    return str(data[key])
+        return None
     except:
         return None
 
-def fetch_mobile(rc):
+# ============ API 4: CarHayHaha ============
+def get_carhayhaha(vehicle):
     try:
-        r = requests.get(f"https://bronx-web-api.onrender.com/api/key-bronx/veh2num?key=op&vehicle={rc}", timeout=10)
-        d = r.json()
-        for k in ['mobile_number','mobile','phone','number']:
-            if d.get(k): return str(d[k])
+        url = f"{API_CARHAYHAHA}?vehicle={vehicle}"
+        resp = requests.get(url, timeout=15)
+        data = resp.json()
+        
+        if data and isinstance(data, dict):
+            # Remove any proxy/cache info
+            clean = {}
+            for k, v in data.items():
+                if not k.startswith('_') and k not in ['credit', 'api_by', 'powered_by', 'cache', 'proxy']:
+                    clean[k] = v
+            return clean if clean else None
         return None
     except:
         return None
 
-def fetch_vahanx(rc):
-    try:
-        r = requests.get(f"https://vahanx.in/rc-search/{rc}", headers={"User-Agent":"Mozilla/5.0"}, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        def gv(l):
-            try:
-                s=soup.find("span",string=l)
-                return s.find_parent("div").find("p").get_text(strip=True) if s else None
-            except: return None
-        d = {
-            "owner_name":gv("Owner Name"),"father_name":gv("Father's Name"),
-            "phone":gv("Phone"),"address":gv("Address"),"city":gv("City Name"),
-            "rto":gv("Registered RTO"),"reg_date":gv("Registration Date"),
-            "model":gv("Model Name"),"fuel":gv("Fuel Type"),
-            "insurance":gv("Insurance Company"),"insurance_upto":gv("Insurance Upto"),
-            "fitness_upto":gv("Fitness Upto"),"tax_upto":gv("Tax Upto"),
-        }
-        return {k:v for k,v in d.items() if v} if any(d.values()) else None
-    except:
-        return None
-
-
-@app.route('/api/vehicle', methods=["GET","POST","OPTIONS"])
-@app.route('/rc', methods=["GET","POST","OPTIONS"])
-def lookup():
-    if request.method=="OPTIONS": return "",204
+# ============ MAIN ALL-IN-ONE ENDPOINT ============
+@app.route('/api/vehicle')
+def all_in_one():
+    vehicle = request.args.get('vehicle', '').strip().upper().replace(' ', '').replace('-', '')
     
-    start = time.time()
+    if not vehicle:
+        return jsonify({
+            "status": "error",
+            "message": "Missing vehicle number. Use /api/vehicle?vehicle=MH02FZ0555"
+        }), 400
     
-    if request.method=="POST":
-        d = request.get_json(silent=True) or {}
-        rc = (d.get("vehicle_number") or d.get("vehicle") or d.get("num") or "").upper().strip()
-    else:
-        rc = (request.args.get("vehicle") or request.args.get("vehicle_number") or 
-              request.args.get("num") or "").upper().strip()
+    start_time = time.time()
     
-    if not rc or len(rc)<4:
-        return jsonify({"error":"RC required"}),400
+    # Fetch from all 4 APIs
+    data_91wheels = get_91wheels(vehicle)
+    data_vehicleinfo = get_vehicleinfo(vehicle)
+    mobile_veh2num = get_veh2num(vehicle)
+    data_carhayhaha = get_carhayhaha(vehicle)
     
-    # Sequential fetch
-    um = fetch_ummmym(rc)
-    wk = fetch_workers(rc)
-    ch = fetch_carhayhaha(rc)
-    mb = fetch_mobile(rc)
-    vx = fetch_vahanx(rc)
-    
-    rt = round(time.time()-start, 2)
-    
-    # 🔥 CLEAN MERGED RESPONSE - NO SOURCE NAMES
-    resp = {
+    # ============ BUILD CLEAN RESPONSE ============
+    result = {
         "status": "success",
-        "rc_number": rc,
-        "credit": CREDIT,
-        "response_time": rt,
-        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "vehicle_number": vehicle,
+        "sources": []
     }
     
-    # OWNER DETAILS
-    resp["owner_name"] = (
-        (um.get("owner_name") if um else None) or
-        (ch.get("owner",{}).get("name") if ch else None) or
-        (wk.get("owner_name") if wk else None) or
-        (vx.get("owner_name") if vx else None) or "N/A"
-    )
-    resp["father_name"] = (
-        (um.get("father_name") if um else None) or
-        (ch.get("owner",{}).get("father_name") if ch else None) or
-        (vx.get("father_name") if vx else None) or ""
-    )
-    resp["mobile_number"] = mb or (um.get("mobile_number") if um else None) or (vx.get("phone") if vx else None) or "N/A"
+    # Track which sources contributed
+    if data_91wheels: result["sources"].append("91wheels")
+    if data_vehicleinfo: result["sources"].append("vehicleinfo")
+    if mobile_veh2num: result["sources"].append("veh2num")
+    if data_carhayhaha: result["sources"].append("carhayhaha")
     
-    # VEHICLE DETAILS
-    resp["manufacturer"] = (
-        (um.get("maker_description") if um else None) or
-        (ch.get("vehicle",{}).get("manufacturer") if ch else None) or "N/A"
-    )
-    resp["model"] = (
-        (um.get("maker_model") if um else None) or
-        (ch.get("vehicle",{}).get("model") if ch else None) or
-        (vx.get("model") if vx else None) or "N/A"
-    )
-    resp["variant"] = (
-        (ch.get("vehicle",{}).get("variant") if ch else None) or "N/A"
-    )
-    resp["fuel_type"] = (
-        (um.get("fuel_type") if um else None) or
-        (ch.get("vehicle",{}).get("fuel") if ch else None) or
-        (vx.get("fuel") if vx else None) or "N/A"
-    )
-    resp["vehicle_class"] = (
-        (um.get("vehicle_category_description") if um else None) or
-        (ch.get("vehicle",{}).get("class") if ch else None) or "N/A"
-    )
-    resp["body_type"] = (um.get("body_type") if um else None) or "N/A"
-    resp["color"] = (um.get("color") if um else None) or "N/A"
-    resp["seating_capacity"] = (
-        (um.get("seat_capacity") if um else None) or
-        (ch.get("vehicle",{}).get("seating") if ch else None) or "N/A"
-    )
-    resp["cubic_capacity"] = (um.get("cubic_capacity") if um else None) or "N/A"
-    resp["vehicle_gross_weight"] = (um.get("vehicle_gross_weight") if um else None) or "N/A"
-    resp["wheelbase"] = (um.get("wheelbase") if um else None) or "N/A"
-    resp["norms_type"] = (um.get("norms_type") if um else None) or "N/A"
+    # ============ OWNER DETAILS ============
+    owner = {}
     
-    # IDENTIFICATION
-    resp["chassis_number"] = (
-        (um.get("vehicle_chasi_number") if um else None) or
-        (ch.get("identification",{}).get("chassis") if ch else None) or "N/A"
-    )
-    resp["engine_number"] = (
-        (um.get("vehicle_engine_number") if um else None) or
-        (ch.get("identification",{}).get("engine") if ch else None) or "N/A"
-    )
+    # From 91Wheels
+    if data_91wheels:
+        d = data_91wheels.get('data', {})
+        owner["owner_name"] = d.get('owner_name', '')
+        owner["father_name"] = d.get('father_name', '')
+        owner["present_address"] = d.get('present_address', '')
+        owner["permanent_address"] = d.get('permanent_address', '')
     
-    # REGISTRATION
-    resp["registration_date"] = (
-        (um.get("registration_date") if um else None) or
-        (ch.get("registration",{}).get("date") if ch else None) or
-        (vx.get("reg_date") if vx else None) or "N/A"
-    )
-    resp["registered_at"] = (
-        (um.get("registered_at") if um else None) or
-        (ch.get("registration",{}).get("authority") if ch else None) or "N/A"
-    )
-    resp["rto_name"] = (
-        (ch.get("registration",{}).get("rto") if ch else None) or
-        (vx.get("rto") if vx else None) or "N/A"
-    )
-    resp["rto_code"] = (
-        (um.get("rto_code") if um else None) or
-        (ch.get("registration",{}).get("rto_code") if ch else None) or "N/A"
-    )
-    resp["manufacturing_date"] = (um.get("manufacturing_date_formatted") if um else None) or "N/A"
-    resp["rc_status"] = (um.get("rc_status") if um else None) or "N/A"
-    resp["owner_number"] = (um.get("owner_number") if um else None) or "N/A"
+    # From VehicleInfo
+    if data_vehicleinfo:
+        if not owner.get("owner_name"):
+            owner["owner_name"] = data_vehicleinfo.get("owner_name", '')
+        if not owner.get("father_name"):
+            owner["father_name"] = data_vehicleinfo.get("father_name", '')
     
-    # INSURANCE
-    resp["insurance_company"] = (
-        (um.get("insurance_company") if um else None) or
-        (ch.get("insurance",{}).get("company") if ch else None) or
-        (vx.get("insurance") if vx else None) or "N/A"
-    )
-    resp["insurance_policy_number"] = (
-        (um.get("insurance_policy_number") if um else None) or
-        (ch.get("insurance",{}).get("policy_no") if ch else None) or "N/A"
-    )
-    resp["insurance_valid_upto"] = (
-        (um.get("insurance_upto") if um else None) or
-        (ch.get("insurance",{}).get("valid_upto") if ch else None) or
-        (vx.get("insurance_upto") if vx else None) or "N/A"
-    )
+    # Mobile number
+    owner["mobile_number"] = mobile_veh2num or (data_91wheels.get('data', {}).get('mobile_number', '')) or ''
     
-    # FITNESS & TAX
-    resp["fit_up_to"] = (um.get("fit_up_to") if um else None) or "N/A"
-    resp["tax_valid_upto"] = (
-        (um.get("tax_upto") if um else None) or
-        (vx.get("tax_upto") if vx else None) or "N/A"
-    )
-    resp["fitness_valid_upto"] = (vx.get("fitness_upto") if vx else None) or "N/A"
+    owner = {k: v for k, v in owner.items() if v}
+    if owner:
+        result["owner_details"] = owner
     
-    # PUC
-    resp["puc_number"] = (um.get("pucc_number") if um else None) or "N/A"
-    resp["puc_valid_upto"] = (um.get("pucc_upto") if um else None) or "N/A"
+    # ============ VEHICLE DETAILS ============
+    vehicle_details = {}
     
-    # FINANCIER
-    resp["financier"] = (
-        (um.get("financer") if um else None) or
-        (ch.get("financier",{}).get("name") if ch else None) or "N/A"
-    )
+    if data_91wheels:
+        d = data_91wheels.get('data', {})
+        vehicle_details.update({
+            "manufacturer": d.get('maker_description', ''),
+            "model": d.get('maker_model', ''),
+            "fuel_type": d.get('fuel_type', ''),
+            "engine_cc": d.get('cubic_capacity', ''),
+            "cylinders": d.get('no_cylinders', ''),
+            "vehicle_class": d.get('vehicle_category_description', ''),
+            "body_type": d.get('body_type', ''),
+            "color": d.get('color', ''),
+            "seating_capacity": d.get('seat_capacity', ''),
+            "gross_weight": d.get('vehicle_gross_weight', ''),
+            "unladen_weight": d.get('unladen_weight', ''),
+            "wheelbase": d.get('wheelbase', ''),
+            "manufacturing_date": d.get('manufacturing_date_formatted', ''),
+        })
     
-    # ADDRESS
-    resp["present_address"] = (
-        (um.get("present_address") if um else None) or
-        (ch.get("address",{}).get("present") if ch else None) or
-        (vx.get("address") if vx else None) or "N/A"
-    )
-    resp["permanent_address"] = (
-        (um.get("permanent_address") if um else None) or
-        (ch.get("address",{}).get("permanent") if ch else None) or "N/A"
-    )
-    resp["city"] = (
-        (um.get("city") if um else None) or
-        (ch.get("address",{}).get("city") if ch else None) or
-        (vx.get("city") if vx else None) or "N/A"
-    )
-    resp["pincode"] = (
-        (ch.get("address",{}).get("pincode") if ch else None) or "N/A"
-    )
+    if data_vehicleinfo:
+        if not vehicle_details.get("manufacturer"):
+            vehicle_details["manufacturer"] = data_vehicleinfo.get("manufacturer", '')
+        if not vehicle_details.get("model"):
+            vehicle_details["model"] = data_vehicleinfo.get("model", '')
+        if not vehicle_details.get("fuel_type"):
+            vehicle_details["fuel_type"] = data_vehicleinfo.get("fuel_type", '')
+        if not vehicle_details.get("engine_cc"):
+            vehicle_details["engine_cc"] = str(data_vehicleinfo.get("engine_cc", ''))
+        if not vehicle_details.get("vehicle_class"):
+            vehicle_details["vehicle_class"] = data_vehicleinfo.get("vehicle_class", '')
+        if not vehicle_details.get("seating_capacity"):
+            vehicle_details["seating_capacity"] = str(data_vehicleinfo.get("seating_capacity", ''))
     
-    # Remove N/A values (optional - comment out if you want all fields)
-    resp = {k:v for k,v in resp.items() if v != "N/A" and v != ""}
+    vehicle_details = {k: v for k, v in vehicle_details.items() if v}
+    if vehicle_details:
+        result["vehicle_details"] = vehicle_details
     
-    return jsonify(resp)
+    # ============ REGISTRATION ============
+    reg = {}
+    
+    if data_91wheels:
+        d = data_91wheels.get('data', {})
+        reg.update({
+            "registration_date": d.get('registration_date', ''),
+            "registered_at": d.get('registered_at', ''),
+            "rto_code": d.get('rto_code', ''),
+            "rc_status": d.get('rc_status', ''),
+            "owner_number": d.get('owner_number', ''),
+        })
+    
+    if data_vehicleinfo:
+        if not reg.get("registration_date"):
+            reg["registration_date"] = data_vehicleinfo.get("registration_date", '')
+        if not reg.get("pincode"):
+            reg["pincode"] = data_vehicleinfo.get("pincode", '')
+    
+    reg = {k: v for k, v in reg.items() if v}
+    if reg:
+        result["registration"] = reg
+    
+    # ============ INSURANCE ============
+    ins = {}
+    
+    if data_91wheels:
+        d = data_91wheels.get('data', {})
+        ins.update({
+            "company": d.get('insurance_company', ''),
+            "policy_number": d.get('insurance_policy_number', ''),
+            "valid_upto": d.get('insurance_upto', ''),
+        })
+    
+    if data_vehicleinfo:
+        if not ins.get("company"):
+            ins["company"] = data_vehicleinfo.get("insurance_company", '')
+        if not ins.get("valid_upto"):
+            ins["valid_upto"] = data_vehicleinfo.get("insurance_upto", '')
+    
+    ins = {k: v for k, v in ins.items() if v}
+    if ins:
+        result["insurance"] = ins
+    
+    # ============ IDENTIFICATION ============
+    ident = {}
+    
+    if data_91wheels:
+        d = data_91wheels.get('data', {})
+        ident["chassis_number"] = d.get('vehicle_chasi_number', '')
+        ident["engine_number"] = d.get('vehicle_engine_number', '')
+    
+    if data_vehicleinfo:
+        if not ident.get("chassis_number"):
+            ident["chassis_number"] = data_vehicleinfo.get("chassis", '')
+        if not ident.get("engine_number"):
+            ident["engine_number"] = data_vehicleinfo.get("engine", '')
+    
+    ident = {k: v for k, v in ident.items() if v}
+    if ident:
+        result["identification"] = ident
+    
+    # ============ TAX & FITNESS ============
+    tax = {}
+    
+    if data_91wheels:
+        d = data_91wheels.get('data', {})
+        tax["tax_valid_upto"] = d.get('tax_upto', '')
+        tax["fitness_valid_upto"] = d.get('fit_up_to', '')
+        tax["puc_number"] = d.get('pucc_number', '')
+        tax["puc_valid_upto"] = d.get('pucc_upto', '')
+    
+    tax = {k: v for k, v in tax.items() if v}
+    if tax:
+        result["fitness_tax_puc"] = tax
+    
+    # ============ EXTRA (CarHayHaha) ============
+    if data_carhayhaha:
+        result["extra_data"] = data_carhayhaha
+    
+    # ============ FINAL ============
+    elapsed = round(time.time() - start_time, 2)
+    result["response_time"] = f"{elapsed}s"
+    result["credit"] = "@BRONX_ULTRA"
+    
+    return jsonify(result)
 
-
+# ============ HEALTH CHECK ============
 @app.route('/health')
 def health():
-    return jsonify({"status":"ONLINE","credit":CREDIT})
+    return jsonify({
+        "status": "✅ BRONX ALL-IN-ONE VEHICLE API ONLINE",
+        "apis": ["91wheels", "vehicleinfo", "veh2num", "carhayhaha"],
+        "credit": "@BRONX_ULTRA"
+    })
 
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not found", "api": "/api/vehicle?vehicle=GJ06RG5545"}), 404
 
-if __name__=='__main__':
-    port = int(os.environ.get('PORT',3000))
-    app.run(host='0.0.0.0',port=port,debug=False)
+if __name__ == '__main__':
+    import urllib3
+    urllib3.disable_warnings()
+    port = int(os.environ.get('PORT', 3000))
+    print("🚗 BRONX ALL-IN-ONE VEHICLE API")
+    print(f"🚀 http://localhost:{port}")
+    app.run(host='0.0.0.0', port=port)
