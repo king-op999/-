@@ -166,19 +166,30 @@ def get_carinfo_rto(rc_number):
         return ("carinfo", None)
 
 def get_new_api_1(rc_number):
+    """ummmym API - with browser-like headers"""
     try:
         url = f"{NEW_API_1}/?rc={rc_number}"
-        resp = requests.get(url, timeout=20)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://ummmym.onrender.com/",
+            "Origin": "https://ummmym.onrender.com",
+        }
+        session = requests.Session()
+        resp = session.get(url, headers=headers, timeout=20)
         data = resp.json()
         if data.get("status") == "success" and data.get("data"):
             clean = data.get("data", {})
             clean.pop("_proxy", None)
             return ("ummmym", clean if clean else None)
         return ("ummmym", None)
-    except:
+    except Exception as e:
+        print(f"ummmym error: {e}")
         return ("ummmym", None)
 
 def get_new_api_2(rc_number):
+    """carhayhaha API"""
     try:
         url = f"{NEW_API_2}?vehicle={rc_number}"
         resp = requests.get(url, timeout=20)
@@ -207,10 +218,7 @@ def vehicle_lookup():
         return jsonify({
             "status": "error",
             "message": "Vehicle number required",
-            "usage": {
-                "GET": "/api/vehicle?vehicle=GJ06RG5545",
-                "POST": "/api/vehicle with body {'vehicle_number':'GJ06RG5545'}"
-            }
+            "usage": {"GET": "/api/vehicle?vehicle=GJ06RG5545", "POST": "/api/vehicle"}
         }), 400
     
     # Run all 7 sources in parallel
@@ -234,7 +242,6 @@ def vehicle_lookup():
     
     response_time = round(time.time() - start_time, 2)
     
-    # Build response
     ft = results.get("ft_osint")
     worker = results.get("workers")
     v2n = results.get("veh2num")
@@ -268,7 +275,6 @@ def vehicle_lookup():
         ft_vehicle = ft.get("vehicle", {})
         ft_insurance = ft.get("insurance", {})
         ft_ident = ft.get("identification", {})
-        ft_financier = ft.get("financier", {})
         ft_fitness = ft.get("fitness", {})
         ft_puc = ft.get("puc", {})
         
@@ -284,7 +290,6 @@ def vehicle_lookup():
             "insurance_company": ft_insurance.get("company"),
             "insurance_valid_upto": ft_insurance.get("valid_upto"),
             "insurance_policy_no": ft_insurance.get("policy_no"),
-            "financier_name": ft_financier.get("name"),
             "fitness_valid_upto": ft_fitness.get("fitness_upto"),
             "tax_valid_upto": ft_fitness.get("tax_upto"),
             "puc_valid_upto": ft_puc.get("valid_upto"), "puc_number": ft_puc.get("no"),
@@ -332,30 +337,17 @@ def vehicle_lookup():
 
 
 @app.route('/health')
-@app.route('/test')
 def test():
     return jsonify({
         "status": "✅ BRONX RC API V8 ONLINE",
-        "version": "8.0 ALL-IN-ONE",
-        "endpoints": {
-            "GET": "/api/vehicle?vehicle=GJ06RG5545",
-            "POST": "/api/vehicle"
-        },
+        "version": "8.0",
+        "endpoints": {"GET": "/api/vehicle?vehicle=GJ06RG5545", "POST": "/api/vehicle"},
         "sources": ["FT-OSINT", "Workers", "Veh2Num", "VahanX", "CarInfo", "ummmym", "carhayhaha"],
         "credit": CREDIT
     })
 
 
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({"error": "Not found", "api": "/api/vehicle?vehicle=RC_NUMBER"}), 404
-
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
-    print(f"""
-    🚗 BRONX RC API V8
-    📍 Port: {port}
-    ⚡ 7 Sources Parallel
-    """)
+    print(f"🚗 BRONX RC API V8 | Port: {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
