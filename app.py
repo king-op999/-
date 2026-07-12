@@ -8,16 +8,8 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
-
 CREDIT = "@BRONX_ULTRA"
-
-# ============ ALL APIs ============
-BRONX_VEH2NUM_API = "https://bronx-web-api.onrender.com/api/key-bronx/veh2num"
-WORKERS_API = "https://vehicleinfo.noobgamingv40.workers.dev/fetch"
-NEW_API_1 = "https://ummmym.onrender.com"
-NEW_API_2 = "https://carhayhaha.onrender.com/api/vehicle"
-
-executor = ThreadPoolExecutor(max_workers=10)
+executor = ThreadPoolExecutor(max_workers=6)
 
 @app.after_request
 def add_cors(response):
@@ -28,273 +20,142 @@ def add_cors(response):
 
 @app.route('/')
 def home():
-    return f'''<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>🚗 BRONX RC API V10</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-*{{margin:0;padding:0;box-sizing:border-box}}
-body{{background:#000a14;color:#d0d8f0;font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}}
-.card{{background:rgba(5,15,35,.9);border:1px solid rgba(0,150,255,.1);border-radius:20px;padding:30px;max-width:700px;width:100%;text-align:center}}
-h1{{font-family:'Orbitron',sans-serif;font-size:28px;background:linear-gradient(90deg,#0096ff,#00d4ff,#8b00ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
-.badge{{display:inline-block;background:rgba(0,255,136,.06);color:#00ff88;padding:4px 14px;border-radius:20px;font-size:10px;border:1px solid rgba(0,255,136,.12);margin:4px}}
-.section{{background:rgba(0,0,0,.5);border:1px solid rgba(0,150,255,.08);border-radius:12px;padding:16px;margin:14px 0;text-align:left}}
-code{{color:#00ff88;font-family:monospace;font-size:11px;word-break:break-all;display:block;margin:6px 0;background:rgba(0,0,0,.3);padding:8px;border-radius:6px}}
-input{{width:100%;padding:14px;background:rgba(0,0,0,.5);border:1px solid rgba(0,150,255,.08);border-radius:10px;color:#fff;font-size:14px;outline:none;margin:8px 0;font-family:'Rajdhani',sans-serif}}
-button{{width:100%;padding:14px;background:linear-gradient(135deg,#0096ff,#0066cc);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:'Orbitron',sans-serif;font-size:14px;margin:6px 0;transition:.3s}}
-.result{{background:rgba(0,0,0,.5);border:1px solid rgba(0,255,136,.08);border-radius:10px;padding:14px;margin-top:10px;text-align:left;display:none;max-height:600px;overflow:auto}}
-.result.show{{display:block}}
-pre{{color:#00ff88;font-family:monospace;font-size:10px;white-space:pre-wrap}}
-</style></head>
-<body>
-<div class="card">
-<h1>🚗 BRONX RC API V10</h1>
-<p style="color:#667;font-size:12px">ALL-IN-ONE • Clean Response</p>
-<div style="margin:10px 0">
-<span class="badge">👤 Owner</span><span class="badge">📱 Mobile</span><span class="badge">🚗 Vehicle</span><span class="badge">🏢 RTO</span>
-</div>
-<div class="section"><code>GET /api/vehicle?vehicle=GJ06RG5545</code></div>
-<div class="section"><code>POST /api/vehicle</code></div>
-<input type="text" id="rcInput" placeholder="RC Number (e.g., GJ06RG5545)">
-<button onclick="lookup()">🔍 LOOKUP</button>
-<div class="result" id="result"><pre id="resultData"></pre></div>
-<p style="color:#667;font-size:10px;margin-top:14px">{CREDIT} | V10</p>
-</div>
-<script>
-async function lookup(){{var n=document.getElementById('rcInput').value.trim();if(!n)return alert('Enter RC!');var d=document.getElementById('result'),p=document.getElementById('resultData');d.classList.add('show');p.style.color='#ffb400';p.textContent='🔍 Fetching...';try{{var r=await fetch('/api/vehicle?vehicle='+encodeURIComponent(n));var j=await r.json();p.style.color='#00ff88';p.textContent=JSON.stringify(j,null,2)}}catch(e){{p.style.color='#ff3366';p.textContent='❌ '+e.message}}}}
-</script>
-</body></html>'''
+    return jsonify({"service":"BRONX RC API","credit":CREDIT,"usage":"/api/vehicle?vehicle=GJ06RG5545"})
 
-
-# ============ SOURCE FUNCTIONS ============
-def get_workers_data(rc_number):
-    """Workers API - Fixed"""
+# ============ WORKERS API - FIXED ============
+def get_workers(rc):
     try:
-        url = f"{WORKERS_API}?vehicle_number={rc_number}"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json"
-        }
-        resp = requests.get(url, headers=headers, timeout=15)
-        data = resp.json()
-        if data and isinstance(data, dict):
-            return ("workers", data)
-        return ("workers", None)
+        # 🔥 CORRECT URL
+        url = f"https://vehicleinfo.noobgamingv40.workers.dev/fetch?vehicle_number={rc}"
+        r = requests.get(url, timeout=10)
+        return ("workers", r.json())
     except Exception as e:
-        print(f"Workers error: {e}")
         return ("workers", None)
 
-def get_bronx_veh2num(rc_number):
+def get_mobile(rc):
     try:
-        url = f"{BRONX_VEH2NUM_API}?key=op&vehicle={rc_number}"
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        mobile = None
-        if data:
-            for key in ['mobile_number', 'mobile', 'phone', 'number']:
-                if data.get(key):
-                    mobile = str(data[key])
-                    break
-        return ("veh2num", mobile)
+        url = f"https://bronx-web-api.onrender.com/api/key-bronx/veh2num?key=op&vehicle={rc}"
+        r = requests.get(url, timeout=8)
+        d = r.json()
+        for k in ['mobile_number','mobile','phone']:
+            if d.get(k): return ("mobile", str(d[k]))
+        return ("mobile", None)
     except:
-        return ("veh2num", None)
+        return ("mobile", None)
 
-def get_vahanx_data(rc_number):
+def get_vahanx(rc):
     try:
-        url = f"https://vahanx.in/rc-search/{rc_number}"
-        headers = {"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"}
-        resp = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        
-        def gv(label):
+        r = requests.get(f"https://vahanx.in/rc-search/{rc}", headers={"User-Agent":"Mozilla/5.0"}, timeout=8)
+        soup = BeautifulSoup(r.text, "html.parser")
+        def gv(l):
             try:
-                span = soup.find("span", string=label)
-                if span:
-                    div = span.find_parent("div")
-                    if div:
-                        p = div.find("p")
-                        if p: return p.get_text(strip=True)
-                return None
+                s=soup.find("span",string=l)
+                return s.find_parent("div").find("p").get_text(strip=True) if s else None
             except: return None
-        
-        data = {
-            "owner_name": gv("Owner Name"), "phone": gv("Phone"),
-            "address": gv("Address"), "city": gv("City Name"),
-            "rto": gv("Registered RTO"), "reg_date": gv("Registration Date"),
-            "model": gv("Model Name"), "fuel": gv("Fuel Type"),
-            "insurance_company": gv("Insurance Company"),
-            "insurance_upto": gv("Insurance Upto"),
-        }
-        return ("vahanx", {k: v for k, v in data.items() if v})
+        d = {"owner_name":gv("Owner Name"),"phone":gv("Phone"),"address":gv("Address"),
+             "city":gv("City Name"),"rto":gv("Registered RTO"),"reg_date":gv("Registration Date"),
+             "model":gv("Model Name"),"fuel":gv("Fuel Type")}
+        return ("vahanx", {k:v for k,v in d.items() if v})
     except:
         return ("vahanx", None)
 
-def get_carinfo_rto(rc_number):
+def get_carhayhaha(rc):
     try:
-        url = f"https://www.carinfo.app/rto-vehicle-registration-detail/rto-details/{rc_number}"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resp = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        info = {}
-        match = re.match(r'^([A-Z]{2}\d{2})', rc_number)
-        if match: info["rto_code"] = match.group(1)
-        for table in soup.find_all('table'):
-            for row in table.find_all('tr'):
-                cells = row.find_all('td')
-                if len(cells) >= 2:
-                    k = cells[0].get_text(strip=True).lower()
-                    v = cells[1].get_text(strip=True)
-                    if 'state' in k: info['state'] = v
-                    elif 'address' in k: info['rto_address'] = v
-                    elif 'phone' in k: info['rto_phone'] = v
-        return ("carinfo", info if info else None)
-    except:
-        return ("carinfo", None)
-
-def get_new_api_1(rc_number):
-    """ummmym API - 3 retries"""
-    for attempt in range(3):
-        try:
-            url = f"{NEW_API_1}/?rc={rc_number}"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "application/json",
-                "Referer": "https://ummmym.onrender.com/",
-            }
-            resp = requests.get(url, headers=headers, timeout=30)
-            data = resp.json()
-            if data.get("status") == "success" and data.get("data"):
-                clean = data.get("data", {})
-                clean.pop("_proxy", None)
-                return ("ummmym", clean if clean else None)
-            if attempt < 2: time.sleep(2)
-        except:
-            if attempt < 2: time.sleep(3)
-    return ("ummmym", None)
-
-def get_new_api_2(rc_number):
-    """carhayhaha API"""
-    try:
-        url = f"{NEW_API_2}?vehicle={rc_number}"
-        resp = requests.get(url, timeout=15)
-        data = resp.json()
-        return ("carhayhaha", data if data and data.get("success") else None)
+        r = requests.get(f"https://carhayhaha.onrender.com/api/vehicle?vehicle={rc}", timeout=12)
+        d = r.json()
+        return ("carhayhaha", d if d and d.get("success") else None)
     except:
         return ("carhayhaha", None)
 
+def get_ummmym(rc):
+    try:
+        r = requests.get(f"https://ummmym.onrender.com/?rc={rc}",
+                        headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"}, timeout=15)
+        d = r.json()
+        if d.get("status")=="success" and d.get("data"):
+            clean = d["data"]
+            clean.pop("_proxy",None)
+            return ("ummmym", clean)
+        return ("ummmym", None)
+    except:
+        return ("ummmym", None)
 
-# ============ MAIN ENDPOINT ============
-@app.route('/api/vehicle', methods=["GET", "POST", "OPTIONS"])
-@app.route('/rc', methods=["GET", "POST", "OPTIONS"])
-def vehicle_lookup():
-    if request.method == "OPTIONS":
-        return "", 204
+
+@app.route('/api/vehicle', methods=["GET","POST","OPTIONS"])
+@app.route('/rc', methods=["GET","POST","OPTIONS"])
+def lookup():
+    if request.method=="OPTIONS": return "",204
     
-    start_time = time.time()
+    start = time.time()
     
-    if request.method == "POST":
+    if request.method=="POST":
         d = request.get_json(silent=True) or {}
-        rc_number = (d.get("vehicle_number") or d.get("vehicle") or d.get("num") or "").upper().strip()
+        rc = (d.get("vehicle_number") or d.get("vehicle") or d.get("num") or "").upper().strip()
     else:
-        rc_number = (request.args.get("vehicle") or request.args.get("vehicle_number") or 
-                     request.args.get("num") or "").upper().strip()
+        rc = (request.args.get("vehicle") or request.args.get("vehicle_number") or 
+              request.args.get("num") or "").upper().strip()
     
-    if not rc_number or len(rc_number) < 4:
-        return jsonify({
-            "error": "Vehicle number required",
-            "usage": "/api/vehicle?vehicle=GJ06RG5545"
-        }), 400
+    if not rc or len(rc)<4:
+        return jsonify({"error":"RC required"}),400
     
-    # Run all 6 sources in parallel
     futures = {
-        executor.submit(get_workers_data, rc_number): "workers",
-        executor.submit(get_bronx_veh2num, rc_number): "veh2num",
-        executor.submit(get_vahanx_data, rc_number): "vahanx",
-        executor.submit(get_carinfo_rto, rc_number): "carinfo",
-        executor.submit(get_new_api_1, rc_number): "ummmym",
-        executor.submit(get_new_api_2, rc_number): "carhayhaha",
+        executor.submit(get_workers, rc): "workers",
+        executor.submit(get_mobile, rc): "mobile",
+        executor.submit(get_vahanx, rc): "vahanx",
+        executor.submit(get_carhayhaha, rc): "carhayhaha",
+        executor.submit(get_ummmym, rc): "ummmym",
     }
     
     results = {}
-    for future in as_completed(futures):
+    for f in as_completed(futures):
         try:
-            name, data = future.result()
-            results[name] = data
+            k,v = f.result()
+            results[k] = v
         except:
             pass
     
-    response_time = round(time.time() - start_time, 2)
+    rt = round(time.time()-start, 2)
     
-    worker = results.get("workers")
-    v2n = results.get("veh2num")
+    w = results.get("workers")
+    m = results.get("mobile")
     vx = results.get("vahanx")
-    rto = results.get("carinfo")
-    api1 = results.get("ummmym")
-    api2 = results.get("carhayhaha")
+    ch = results.get("carhayhaha")
+    um = results.get("ummmym")
     
-    result = {
-        "status": "success",
-        "rc_number": rc_number,
-        "credit": CREDIT,
-        "response_time_seconds": response_time,
-        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    resp = {
+        "status":"success",
+        "rc_number":rc,
+        "credit":CREDIT,
+        "response_time":rt,
+        "timestamp":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
     
-    if worker:
-        result["workers_api"] = worker
-    if v2n:
-        result["mobile_number"] = v2n
-    if vx:
-        result["vahanx"] = vx
-    if rto:
-        result["carinfo_rto"] = rto
-    if api1:
-        result["ummmym_vehicle_details"] = api1
-    if api2:
-        result["carhayhaha_vehicle_details"] = api2
+    if w: resp["workers_api"] = w
+    if m: resp["mobile_number"] = m
+    if vx: resp["vahanx"] = vx
+    if ch: resp["carhayhaha_vehicle_details"] = ch
+    if um: resp["ummmym_vehicle_details"] = um
     
-    # Summary
-    result["📋_summary"] = {
-        "owner_name": (
-            (api2.get("owner", {}).get("name") if api2 else None) or
-            (api1.get("owner_name") if api1 else None) or
-            (worker.get("owner_name") if worker else None) or
-            (vx.get("owner_name") if vx else None) or "N/A"
-        ),
-        "mobile_number": v2n or (api1.get("mobile_number") if api1 else None) or "N/A",
-        "model": (
-            (api2.get("vehicle", {}).get("model") if api2 else None) or
-            (api1.get("maker_model") if api1 else None) or
-            (worker.get("model") if worker else None) or
-            (vx.get("model") if vx else None) or "N/A"
-        ),
-        "fuel_type": (
-            (api2.get("vehicle", {}).get("fuel") if api2 else None) or
-            (api1.get("fuel_type") if api1 else None) or
-            (worker.get("fuel_type") if worker else None) or
-            (vx.get("fuel") if vx else None) or "N/A"
-        ),
-        "registration_date": (
-            (api2.get("registration", {}).get("date") if api2 else None) or
-            (api1.get("registration_date") if api1 else None) or
-            (worker.get("registration_date") if worker else None) or
-            (vx.get("reg_date") if vx else None) or "N/A"
-        ),
-        "rto_name": (
-            (api2.get("registration", {}).get("rto") if api2 else None) or
-            (api1.get("registered_at") if api1 else None) or
-            (vx.get("rto") if vx else None) or "N/A"
-        )
+    resp["summary"] = {
+        "owner": (ch.get("owner",{}).get("name") if ch else None) or
+                 (um.get("owner_name") if um else None) or
+                 (w.get("owner_name") if w else None) or
+                 (vx.get("owner_name") if vx else None) or "N/A",
+        "mobile": m or (um.get("mobile_number") if um else None) or "N/A",
+        "model": (ch.get("vehicle",{}).get("model") if ch else None) or
+                 (um.get("maker_model") if um else None) or
+                 (w.get("model") if w else None) or "N/A",
+        "fuel": (ch.get("vehicle",{}).get("fuel") if ch else None) or
+                (um.get("fuel_type") if um else None) or
+                (w.get("fuel_type") if w else None) or "N/A",
     }
     
-    return jsonify(result)
-
+    return jsonify(resp)
 
 @app.route('/health')
 def health():
-    return jsonify({"status": "✅ ONLINE", "version": "V10", "credit": CREDIT})
+    return jsonify({"status":"ONLINE","credit":CREDIT})
 
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+if __name__=='__main__':
+    port = int(os.environ.get('PORT',3000))
+    app.run(host='0.0.0.0',port=port,debug=False)
