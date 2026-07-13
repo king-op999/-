@@ -1,6 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import requests
-import concurrent.futures
 import json
 from flask_cors import CORS
 
@@ -8,11 +7,10 @@ app = Flask(__name__)
 CORS(app)
 
 def remove_proxy_field(data):
-    """Remove _proxy field if exists"""
+    """Remove _proxy field from response"""
     if isinstance(data, dict):
         if '_proxy' in data:
             del data['_proxy']
-        # Also remove from nested structures
         for key, value in data.items():
             if isinstance(value, dict):
                 remove_proxy_field(value)
@@ -22,20 +20,28 @@ def remove_proxy_field(data):
                         remove_proxy_field(item)
     return data
 
-def fetch_vehicle_data(url):
-    """Fetch vehicle data from given URL"""
+def clean_text_response(text):
+    """Clean text response by removing _proxy block"""
     try:
-        response = requests.get(url, timeout=15)
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                data = remove_proxy_field(data)
-                return data
-            except:
-                return response.text
-        return None
+        # Try to parse as JSON and remove _proxy
+        data = json.loads(text)
+        data = remove_proxy_field(data)
+        return json.dumps(data, indent=2)
     except:
-        return None
+        # Remove _proxy from raw text
+        lines = text.split('\n')
+        cleaned_lines = []
+        skip_proxy = False
+        for line in lines:
+            if '"_proxy"' in line or '_proxy' in line:
+                skip_proxy = True
+                continue
+            if skip_proxy:
+                if '}' in line and not '{' in line:
+                    skip_proxy = False
+                continue
+            cleaned_lines.append(line)
+        return '\n'.join(cleaned_lines)
 
 @app.route('/api/vehicle')
 def get_vehicle_info():
@@ -44,51 +50,48 @@ def get_vehicle_info():
     if not vehicle:
         return jsonify({"error": "Vehicle number required"}), 400
     
-    urls = [
-        f"https://ummmym.onrender.com/?rc={vehicle}",
-        f"https://vehicleinfo.noobgamingv40.workers.dev/fetch?vehicle_number={vehicle}",
-        f"https://bronx-web-api.onrender.com/api/key-bronx/veh2num?key=op&vehicle={vehicle}",
-        f"https://carhayhaha.onrender.com/api/vehicle?vehicle={vehicle}"
-    ]
+    def generate():
+        # API 1 - ummmym (slow response, 10-15 seconds)
+        try:
+            url1 = f"https://ummmym.onrender.com/?rc={vehicle}"
+            resp1 = requests.get(url1, timeout=30)
+            yield clean_text_response(resp1.text) + "\n\n"
+        except Exception as e:
+            yield f"API Error: {str(e)}\n\n"
+        
+        # API 2 - vehicleinfo
+        try:
+            url2 = f"https://vehicleinfo.noobgamingv40.workers.dev/fetch?vehicle_number={vehicle}"
+            resp2 = requests.get(url2, timeout=15)
+            yield clean_text_response(resp2.text) + "\n\n"
+        except Exception as e:
+            yield f"API Error: {str(e)}\n\n"
+        
+        # API 3 - bronx
+        try:
+            url3 = f"https://bronx-web-api.onrender.com/api/key-bronx/veh2num?key=op&vehicle={vehicle}"
+            resp3 = requests.get(url3, timeout=15)
+            yield clean_text_response(resp3.text) + "\n\n"
+        except Exception as e:
+            yield f"API Error: {str(e)}\n\n"
+        
+        # API 4 - carhayhaha
+        try:
+            url4 = f"https://carhayhaha.onrender.com/api/vehicle?vehicle={vehicle}"
+            resp4 = requests.get(url4, timeout=15)
+            yield clean_text_response(resp4.text)
+        except Exception as e:
+            yield f"API Error: {str(e)}"
     
-    results = []
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        future_to_url = {executor.submit(fetch_vehicle_data, url): url for url in urls}
-        for future in concurrent.futures.as_completed(future_to_url):
-            result = future.result()
-            if result:
-                if isinstance(result, list):
-                    results.extend(result)
-                elif isinstance(result, dict):
-                    results.append(result)
-    
-    # Merge all results into single clean response
-    final_response = {}
-    
-    for item in results:
-        if isinstance(item, dict):
-            for key, value in item.items():
-                if key != '_proxy':
-                    if key in final_response:
-                        if isinstance(final_response[key], list):
-                            if isinstance(value, list):
-                                final_response[key].extend(value)
-                            else:
-                                final_response[key].append(value)
-                        else:
-                            if isinstance(value, list):
-                                final_response[key] = [final_response[key]] + value
-                            else:
-                                final_response[key] = [final_response[key], value]
-                    else:
-                        final_response[key] = value
-    
-    return jsonify(final_response)
+    return Response(generate(), mimetype='text/plain')
 
 @app.route('/')
 def home():
-    return jsonify({"status": "API Running", "usage": "/api/vehicle?vehicle=VEHICLE_NUMBER"})
+    return jsonify({
+        "status": "API Running ✅",
+        "usage": "/api/vehicle?vehicle=GJ06RG5545",
+        "response": "All 4 APIs response one by one"
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
